@@ -1,0 +1,11 @@
+{
+    "name": "Prime",
+    "author": "Slatyo",
+    "version_number": "1.0.0",
+    "website_url": "https://github.com/Slatyo/Valheim-Prime",
+    "description": "Combat and Stats Engine - Stats, modifiers, abilities, damage pipeline, effects, and events for the Valheim mod ecosystem.",
+    "dependencies": [
+        "denikson-BepInExPack_Valheim-5.4.2333",
+        "ValheimModding-Jotunn-2.26.1"
+    ]
+}
