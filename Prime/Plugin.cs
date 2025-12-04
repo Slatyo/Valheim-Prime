@@ -166,6 +166,51 @@ namespace Prime
                 Tags = new[] { "damage", "physical" }
             });
 
+            registry.Register(new StatDefinition("FireDamage", 0f)
+            {
+                DisplayName = "$stat_firedamage",
+                Description = "$stat_firedamage_desc",
+                MinValue = 0f,
+                Category = StatCategory.Offense,
+                Tags = new[] { "damage", "elemental", "fire" }
+            });
+
+            registry.Register(new StatDefinition("FrostDamage", 0f)
+            {
+                DisplayName = "$stat_frostdamage",
+                Description = "$stat_frostdamage_desc",
+                MinValue = 0f,
+                Category = StatCategory.Offense,
+                Tags = new[] { "damage", "elemental", "frost" }
+            });
+
+            registry.Register(new StatDefinition("LightningDamage", 0f)
+            {
+                DisplayName = "$stat_lightningdamage",
+                Description = "$stat_lightningdamage_desc",
+                MinValue = 0f,
+                Category = StatCategory.Offense,
+                Tags = new[] { "damage", "elemental", "lightning" }
+            });
+
+            registry.Register(new StatDefinition("PoisonDamage", 0f)
+            {
+                DisplayName = "$stat_poisondamage",
+                Description = "$stat_poisondamage_desc",
+                MinValue = 0f,
+                Category = StatCategory.Offense,
+                Tags = new[] { "damage", "elemental", "poison" }
+            });
+
+            registry.Register(new StatDefinition("SpiritDamage", 0f)
+            {
+                DisplayName = "$stat_spiritdamage",
+                Description = "$stat_spiritdamage_desc",
+                MinValue = 0f,
+                Category = StatCategory.Offense,
+                Tags = new[] { "damage", "elemental", "spirit" }
+            });
+
             registry.Register(new StatDefinition("AttackSpeed", 1f)
             {
                 DisplayName = "$stat_attackspeed",
@@ -261,6 +306,17 @@ namespace Prime
                 Category = StatCategory.Resistance,
                 DisplayType = StatDisplayType.Percent,
                 Tags = new[] { "resistance", "poison" }
+            });
+
+            registry.Register(new StatDefinition("SpiritResist", 0f)
+            {
+                DisplayName = "$stat_spiritresist",
+                Description = "$stat_spiritresist_desc",
+                MinValue = -1f,
+                MaxValue = 1f,
+                Category = StatCategory.Resistance,
+                DisplayType = StatDisplayType.Percent,
+                Tags = new[] { "resistance", "spirit" }
             });
 
             // === MOVEMENT ===

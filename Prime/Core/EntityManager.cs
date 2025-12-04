@@ -219,12 +219,22 @@ namespace Prime.Core
         /// </summary>
         private string GetEntityName(object entity)
         {
-            return entity switch
+            try
             {
-                Character character => character.GetHoverName(),
-                GameObject go => go.name,
-                _ => entity.GetType().Name
-            };
+                return entity switch
+                {
+                    Character character => character.GetHoverName() ?? character.name ?? "Unknown Character",
+                    GameObject go => go.name ?? "Unknown GameObject",
+                    _ => entity.GetType().Name
+                };
+            }
+            catch (Exception)
+            {
+                // GetHoverName() can throw if Tameable component isn't fully initialized
+                if (entity is UnityEngine.Object unityObj)
+                    return unityObj.name ?? "Unknown";
+                return entity.GetType().Name;
+            }
         }
     }
 }
