@@ -419,6 +419,76 @@ namespace Prime
                 { "stat_cooldownreduction", "Cooldown Reduction" },
                 { "stat_cooldownreduction_desc", "Reduces ability cooldowns" },
             });
+
+            // === GERMAN TRANSLATIONS ===
+            loc.AddTranslation("German", new System.Collections.Generic.Dictionary<string, string>
+            {
+                // Attributes
+                { "stat_strength", "Stärke" },
+                { "stat_strength_desc", "Erhöht physischen Schaden und Tragkraft" },
+                { "stat_dexterity", "Geschicklichkeit" },
+                { "stat_dexterity_desc", "Erhöht Angriffsgeschwindigkeit und kritische Trefferchance" },
+                { "stat_intelligence", "Intelligenz" },
+                { "stat_intelligence_desc", "Erhöht magischen Schaden und Eitr-Pool" },
+                { "stat_vitality", "Vitalität" },
+                { "stat_vitality_desc", "Erhöht Gesundheit und Gesundheitsregeneration" },
+
+                // Resources
+                { "stat_maxhealth", "Maximale Gesundheit" },
+                { "stat_maxhealth_desc", "Maximale Gesundheitspunkte" },
+                { "stat_maxstamina", "Maximale Ausdauer" },
+                { "stat_maxstamina_desc", "Maximale Ausdauerpunkte" },
+                { "stat_maxeitr", "Maximales Eitr" },
+                { "stat_maxeitr_desc", "Maximale Eitr (Magie) Punkte" },
+
+                // Offense
+                { "stat_physicaldamage", "Physischer Schaden" },
+                { "stat_physicaldamage_desc", "Zusätzlicher physischer Schaden" },
+                { "stat_firedamage", "Feuerschaden" },
+                { "stat_firedamage_desc", "Zusätzlicher Feuerschaden" },
+                { "stat_frostdamage", "Frostschaden" },
+                { "stat_frostdamage_desc", "Zusätzlicher Frostschaden" },
+                { "stat_lightningdamage", "Blitzschaden" },
+                { "stat_lightningdamage_desc", "Zusätzlicher Blitzschaden" },
+                { "stat_poisondamage", "Giftschaden" },
+                { "stat_poisondamage_desc", "Zusätzlicher Giftschaden" },
+                { "stat_spiritdamage", "Geisterschaden" },
+                { "stat_spiritdamage_desc", "Zusätzlicher Geisterschaden" },
+                { "stat_attackspeed", "Angriffsgeschwindigkeit" },
+                { "stat_attackspeed_desc", "Multiplikator für Angriffsgeschwindigkeit" },
+                { "stat_critchance", "Kritische Trefferchance" },
+                { "stat_critchance_desc", "Chance auf kritischen Schaden" },
+                { "stat_critdamage", "Kritischer Schaden" },
+                { "stat_critdamage_desc", "Schadensmultiplikator bei kritischen Treffern" },
+
+                // Defense
+                { "stat_armor", "Rüstung" },
+                { "stat_armor_desc", "Reduziert erlittenen physischen Schaden" },
+                { "stat_blockpower", "Blockkraft" },
+                { "stat_blockpower_desc", "Blockierter Schaden beim Parieren" },
+
+                // Resistances
+                { "stat_fireresist", "Feuerwiderstand" },
+                { "stat_fireresist_desc", "Widerstand gegen Feuerschaden" },
+                { "stat_frostresist", "Frostwiderstand" },
+                { "stat_frostresist_desc", "Widerstand gegen Frostschaden" },
+                { "stat_lightningresist", "Blitzwiderstand" },
+                { "stat_lightningresist_desc", "Widerstand gegen Blitzschaden" },
+                { "stat_poisonresist", "Giftwiderstand" },
+                { "stat_poisonresist_desc", "Widerstand gegen Giftschaden" },
+                { "stat_spiritresist", "Geisterwiderstand" },
+                { "stat_spiritresist_desc", "Widerstand gegen Geisterschaden" },
+
+                // Movement
+                { "stat_movespeed", "Bewegungsgeschwindigkeit" },
+                { "stat_movespeed_desc", "Multiplikator für Bewegungsgeschwindigkeit" },
+
+                // Utility
+                { "stat_carryweight", "Tragkraft" },
+                { "stat_carryweight_desc", "Maximales Gewicht das du tragen kannst" },
+                { "stat_cooldownreduction", "Abklingzeitverkürzung" },
+                { "stat_cooldownreduction_desc", "Reduziert Fähigkeiten-Abklingzeiten" },
+            });
         }
 
         /// <summary>
