@@ -141,6 +141,7 @@ namespace Prime.Stats
             return value;
         }
 
+        /// <inheritdoc/>
         public override string ToString() => $"StatDef({Id}, base={BaseValue})";
     }
 

@@ -13,6 +13,9 @@ namespace Prime.Abilities
         private static AbilityRegistry _instance;
         private static readonly object _lock = new object();
 
+        /// <summary>
+        /// Gets the singleton instance of the ability registry.
+        /// </summary>
         public static AbilityRegistry Instance
         {
             get

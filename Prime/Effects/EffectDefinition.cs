@@ -181,6 +181,10 @@ namespace Prime.Effects
         /// </summary>
         public Action<Character, float> OnUpdate { get; set; }
 
+        /// <summary>
+        /// Creates a new effect definition with the specified ID.
+        /// </summary>
+        /// <param name="id">Unique identifier for this effect</param>
         public EffectDefinition(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -226,6 +230,7 @@ namespace Prime.Effects
             };
         }
 
+        /// <inheritdoc/>
         public override string ToString() => $"Effect({Id})";
     }
 

@@ -141,8 +141,16 @@ namespace Prime.Combat
         /// </summary>
         public float Timestamp { get; } = Time.time;
 
+        /// <summary>
+        /// Creates an empty damage info.
+        /// </summary>
         public DamageInfo() { }
 
+        /// <summary>
+        /// Creates damage info with attacker and target.
+        /// </summary>
+        /// <param name="attacker">The character dealing damage</param>
+        /// <param name="target">The character receiving damage</param>
         public DamageInfo(Character attacker, Character target)
         {
             Attacker = attacker;
@@ -313,6 +321,7 @@ namespace Prime.Combat
             hitData.m_backstabBonus = BackstabMultiplier;
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             return $"DamageInfo({Attacker?.GetHoverName() ?? "?"} -> {Target?.GetHoverName() ?? "?"}: {TotalDamage:F1} dmg{(IsCritical ? " CRIT" : "")})";

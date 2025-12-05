@@ -27,6 +27,10 @@ namespace Prime.Abilities
         /// </summary>
         public int Count => _abilities.Count;
 
+        /// <summary>
+        /// Creates a new entity abilities container.
+        /// </summary>
+        /// <param name="owner">The character that owns these abilities</param>
         public EntityAbilities(Character owner)
         {
             _owner = owner ?? throw new ArgumentNullException(nameof(owner));

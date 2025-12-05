@@ -338,7 +338,7 @@ namespace Prime.Effects
         /// <param name="target">The entity</param>
         /// <param name="dispelBuffs">Remove buffs?</param>
         /// <param name="dispelDebuffs">Remove debuffs?</param>
-        /// <param name="maxPriority">Only dispel effects with priority <= this</param>
+        /// <param name="maxPriority">Only dispel effects with priority less than or equal to this value</param>
         /// <returns>Number of effects dispelled</returns>
         public static int Dispel(Character target, bool dispelBuffs = true, bool dispelDebuffs = false, int maxPriority = int.MaxValue)
         {

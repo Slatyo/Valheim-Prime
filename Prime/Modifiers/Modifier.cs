@@ -197,6 +197,7 @@ namespace Prime.Modifiers
             };
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             string typeSymbol = Type switch

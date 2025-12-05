@@ -212,6 +212,10 @@ namespace Prime.Abilities
         /// </summary>
         public Func<Character, bool> UseCondition { get; set; }
 
+        /// <summary>
+        /// Creates a new ability definition with the specified ID.
+        /// </summary>
+        /// <param name="id">Unique identifier for this ability</param>
         public AbilityDefinition(string id)
         {
             if (string.IsNullOrWhiteSpace(id))
@@ -269,6 +273,7 @@ namespace Prime.Abilities
             return clone;
         }
 
+        /// <inheritdoc/>
         public override string ToString() => $"Ability({Id})";
     }
 
@@ -312,8 +317,18 @@ namespace Prime.Abilities
         /// </summary>
         public string ActiveVFX { get; set; }
 
+        /// <summary>
+        /// Creates an empty ability effect.
+        /// </summary>
         public AbilityEffect() { }
 
+        /// <summary>
+        /// Creates an ability effect with the specified parameters.
+        /// </summary>
+        /// <param name="statId">The stat to modify</param>
+        /// <param name="type">How the modifier is applied</param>
+        /// <param name="value">The modifier value</param>
+        /// <param name="duration">Duration in seconds (0 = instant)</param>
         public AbilityEffect(string statId, Modifiers.ModifierType type, float value, float duration = 0f)
         {
             StatId = statId;
@@ -343,8 +358,17 @@ namespace Prime.Abilities
         /// </summary>
         public bool IsPercentage { get; set; }
 
+        /// <summary>
+        /// Creates an empty resource cost.
+        /// </summary>
         public ResourceCost() { }
 
+        /// <summary>
+        /// Creates a resource cost with the specified parameters.
+        /// </summary>
+        /// <param name="resourceType">Resource type (Health, Stamina, Eitr, or custom)</param>
+        /// <param name="amount">Amount of resource consumed</param>
+        /// <param name="isPercentage">If true, cost is a percentage of max resource</param>
         public ResourceCost(string resourceType, float amount, bool isPercentage = false)
         {
             ResourceType = resourceType;
@@ -352,6 +376,10 @@ namespace Prime.Abilities
             IsPercentage = isPercentage;
         }
 
+        /// <summary>
+        /// Creates a copy of this resource cost.
+        /// </summary>
+        /// <returns>A new ResourceCost with the same values</returns>
         public ResourceCost Clone() => new ResourceCost(ResourceType, Amount, IsPercentage);
     }
 
@@ -408,17 +436,29 @@ namespace Prime.Abilities
     /// </summary>
     public enum DamageType
     {
+        /// <summary>Generic physical damage.</summary>
         Physical,
+        /// <summary>Fire elemental damage.</summary>
         Fire,
+        /// <summary>Frost elemental damage.</summary>
         Frost,
+        /// <summary>Lightning elemental damage.</summary>
         Lightning,
+        /// <summary>Poison damage over time.</summary>
         Poison,
+        /// <summary>Spirit/holy damage.</summary>
         Spirit,
+        /// <summary>Blunt physical damage.</summary>
         Blunt,
+        /// <summary>Slashing physical damage.</summary>
         Slash,
+        /// <summary>Piercing physical damage.</summary>
         Pierce,
+        /// <summary>Chopping damage for trees.</summary>
         Chop,
+        /// <summary>Pickaxe damage for mining.</summary>
         Pickaxe,
-        True  // Ignores armor/resistances
+        /// <summary>True damage that ignores armor and resistances.</summary>
+        True
     }
 }

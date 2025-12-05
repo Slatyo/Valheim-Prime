@@ -64,6 +64,11 @@ namespace Prime.Abilities
         /// </summary>
         public object UserData { get; set; }
 
+        /// <summary>
+        /// Creates a new ability instance.
+        /// </summary>
+        /// <param name="definition">The ability definition</param>
+        /// <param name="caster">The character using the ability</param>
         public AbilityInstance(AbilityDefinition definition, Character caster)
         {
             Definition = definition ?? throw new ArgumentNullException(nameof(definition));

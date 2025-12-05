@@ -18,8 +18,10 @@ namespace Prime.Commands
     /// </summary>
     public class PrimeCommand : ConsoleCommand
     {
+        /// <inheritdoc/>
         public override string Name => "prime";
 
+        /// <inheritdoc/>
         public override string Help => @"Prime combat and stats system commands.
 
 Usage:
@@ -57,6 +59,7 @@ Examples:
   prime ability grant Fireball
   prime ability use Fireball";
 
+        /// <inheritdoc/>
         public override void Run(string[] args)
         {
             if (args.Length == 0)

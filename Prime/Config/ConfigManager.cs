@@ -56,6 +56,10 @@ namespace Prime.Config
         /// </summary>
         public ConfigEntry<float> VitalityHealthBonus { get; private set; }
 
+        /// <summary>
+        /// Creates a new configuration manager.
+        /// </summary>
+        /// <param name="config">The BepInEx config file</param>
         public ConfigManager(ConfigFile config)
         {
             _config = config;

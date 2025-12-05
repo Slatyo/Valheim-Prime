@@ -53,6 +53,11 @@ namespace Prime.Effects
         /// </summary>
         public object UserData { get; set; }
 
+        /// <summary>
+        /// Creates a new effect instance.
+        /// </summary>
+        /// <param name="definition">The effect definition</param>
+        /// <param name="owner">The character affected by this effect</param>
         public EffectInstance(EffectDefinition definition, Character owner)
         {
             Definition = definition ?? throw new ArgumentNullException(nameof(definition));
@@ -214,6 +219,7 @@ namespace Prime.Effects
             }
         }
 
+        /// <inheritdoc/>
         public override string ToString()
         {
             string stackStr = Stacks > 1 ? $" x{Stacks}" : "";

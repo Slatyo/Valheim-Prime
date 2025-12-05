@@ -18,8 +18,11 @@ namespace Prime
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     public class Plugin : BaseUnityPlugin
     {
-        public const string PluginGUID = "com.prime.valheim";
+        /// <summary>Plugin GUID for BepInEx.</summary>
+        public const string PluginGUID = "com.slatyo.prime";
+        /// <summary>Plugin display name.</summary>
         public const string PluginName = "Prime";
+        /// <summary>Plugin version.</summary>
         public const string PluginVersion = "1.0.0";
 
         /// <summary>
