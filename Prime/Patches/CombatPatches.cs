@@ -24,6 +24,9 @@ namespace Prime.Patches
             // Get attacker
             Character attacker = hit.GetAttacker();
 
+            // Log original damage for debugging
+            float originalTotal = hit.GetTotalDamage();
+
             // Convert HitData to DamageInfo
             var damageInfo = DamageInfo.FromHitData(hit, attacker, __instance);
 
@@ -42,11 +45,16 @@ namespace Prime.Patches
                 hit.m_damage.m_lightning = 0;
                 hit.m_damage.m_poison = 0;
                 hit.m_damage.m_spirit = 0;
+                Plugin.Log?.LogDebug($"[Prime] Damage cancelled to {__instance.m_name}");
                 return;
             }
 
             // Apply modified damage back to HitData
             damageInfo.ApplyToHitData(hit);
+
+            // Log result
+            float newTotal = hit.GetTotalDamage();
+            Plugin.Log?.LogDebug($"[Prime] Damage to {__instance.m_name}: {originalTotal:F1} -> {newTotal:F1} (Final: {finalDamage:F1})");
         }
 
         /// <summary>
@@ -135,6 +143,35 @@ namespace Prime.Patches
             {
                 __result = carryWeight;
             }
+        }
+    }
+
+    /// <summary>
+    /// Patches to suppress vanilla damage text (let Veneer handle it via events).
+    /// </summary>
+    [HarmonyPatch]
+    public static class DamageTextPatches
+    {
+        /// <summary>
+        /// Suppress vanilla damage text overload (TextType, Vector3, float, bool).
+        /// </summary>
+        [HarmonyPatch(typeof(DamageText), nameof(DamageText.ShowText),
+            new[] { typeof(DamageText.TextType), typeof(Vector3), typeof(float), typeof(bool) })]
+        [HarmonyPrefix]
+        public static bool DamageText_ShowText_Prefix_4Args()
+        {
+            return false;
+        }
+
+        /// <summary>
+        /// Suppress AddInworldText - this is the internal method that actually creates the text.
+        /// Patching this ensures all damage text is suppressed regardless of how it's called.
+        /// </summary>
+        [HarmonyPatch(typeof(DamageText), "AddInworldText")]
+        [HarmonyPrefix]
+        public static bool DamageText_AddInworldText_Prefix()
+        {
+            return false;
         }
     }
 

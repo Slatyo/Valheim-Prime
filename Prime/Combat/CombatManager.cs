@@ -186,29 +186,40 @@ namespace Prime.Combat
             if (damageInfo.Attacker == null)
                 return;
 
-            // Apply damage type bonuses
-            foreach (var kvp in new Dictionary<DamageType, float>(damageInfo.Damages))
-            {
-                float bonus = GetDamageTypeBonus(damageInfo.Attacker, kvp.Key);
-                if (bonus != 0f)
-                {
-                    damageInfo.Damages[kvp.Key] = kvp.Value * (1f + bonus);
-                }
-            }
-
-            // Apply PhysicalDamage bonus to physical types
+            // Apply PhysicalDamage bonus - add to any physical damage type present
             float physBonus = PrimeAPI.Get(damageInfo.Attacker, "PhysicalDamage");
             if (physBonus > 0)
             {
                 var physicalTypes = new[] { DamageType.Physical, DamageType.Blunt, DamageType.Slash, DamageType.Pierce };
+                bool hasPhysical = false;
                 foreach (var type in physicalTypes)
                 {
-                    if (damageInfo.Damages.TryGetValue(type, out float value))
+                    if (damageInfo.Damages.ContainsKey(type))
                     {
-                        damageInfo.Damages[type] = value + physBonus;
+                        hasPhysical = true;
+                        break;
+                    }
+                }
+
+                if (hasPhysical)
+                {
+                    // Distribute bonus across all physical types proportionally
+                    foreach (var type in physicalTypes)
+                    {
+                        if (damageInfo.Damages.TryGetValue(type, out float value))
+                        {
+                            damageInfo.Damages[type] = value + physBonus;
+                        }
                     }
                 }
             }
+
+            // Apply elemental damage bonuses - these ADD new damage if the player has the stat
+            AddElementalBonus(damageInfo, DamageType.Fire, "FireDamage");
+            AddElementalBonus(damageInfo, DamageType.Frost, "FrostDamage");
+            AddElementalBonus(damageInfo, DamageType.Lightning, "LightningDamage");
+            AddElementalBonus(damageInfo, DamageType.Poison, "PoisonDamage");
+            AddElementalBonus(damageInfo, DamageType.Spirit, "SpiritDamage");
 
             // Apply Strength scaling (optional - configurable)
             if (Plugin.ConfigManager.StrengthScaling.Value > 0)
@@ -219,6 +230,27 @@ namespace Prime.Combat
                 if (strengthBonus != 0f)
                 {
                     damageInfo.MultiplyAllDamage(1f + strengthBonus);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds elemental damage from player stats to the damage info.
+        /// This is flat additional damage, not a multiplier.
+        /// </summary>
+        private static void AddElementalBonus(DamageInfo damageInfo, DamageType type, string statId)
+        {
+            float bonus = PrimeAPI.Get(damageInfo.Attacker, statId);
+            if (bonus > 0)
+            {
+                // Add to existing or create new
+                if (damageInfo.Damages.TryGetValue(type, out float existing))
+                {
+                    damageInfo.Damages[type] = existing + bonus;
+                }
+                else
+                {
+                    damageInfo.Damages[type] = bonus;
                 }
             }
         }
@@ -303,24 +335,5 @@ namespace Prime.Combat
             damageInfo.Damages[type] = damage * (1f - resist);
         }
 
-        private static float GetDamageTypeBonus(Character attacker, DamageType type)
-        {
-            string statId = type switch
-            {
-                DamageType.Fire => "FireDamage",
-                DamageType.Frost => "FrostDamage",
-                DamageType.Lightning => "LightningDamage",
-                DamageType.Poison => "PoisonDamage",
-                DamageType.Spirit => "SpiritDamage",
-                _ => null
-            };
-
-            if (statId != null && Stats.StatRegistry.Instance.IsRegistered(statId))
-            {
-                return PrimeAPI.Get(attacker, statId);
-            }
-
-            return 0f;
-        }
     }
 }
