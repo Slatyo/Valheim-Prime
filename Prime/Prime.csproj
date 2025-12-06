@@ -42,6 +42,13 @@
     <PackageReference Include="JotunnLib" Version="2.26.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="Munin">
+      <HintPath>$(MOD_DEPLOYPATH)\Munin\Munin.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
   <PropertyGroup>
     <VALHEIM_MANAGED>$(VALHEIM_INSTALL)/valheim_Data/Managed</VALHEIM_MANAGED>
     <UNITY_FOLDER>$(SolutionDir)PrimeUnity</UNITY_FOLDER>
