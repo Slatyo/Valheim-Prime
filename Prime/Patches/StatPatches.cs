@@ -1,26 +1,28 @@
-using System.Reflection;
+using System.Collections.Generic;
 using HarmonyLib;
 using Prime.Core;
+using Prime.Modifiers;
 using UnityEngine;
 
 namespace Prime.Patches
 {
     /// <summary>
     /// Harmony patches that apply Prime stats to Valheim's character systems.
+    ///
+    /// APPROACH: Use Postfix patches on getter methods to add Prime bonuses.
+    /// This intercepts ALL vanilla checks (UI, clamping, regen, etc.) cleanly.
+    /// No field manipulation = no compounding issues.
     /// </summary>
     [HarmonyPatch]
     public static class StatPatches
     {
-        // Track the Prime bonus for health to prevent vanilla from resetting it
-        private static float _lastPrimeHealthBonus = 0f;
-
-        // Cached reflection field for direct health manipulation
-        private static FieldInfo _healthField;
-        private static FieldInfo _staminaField;
+        // === MAX RESOURCE PATCHES ===
+        // Postfix on Get methods to add Prime bonuses to the return value.
+        // This is the cleanest approach - vanilla uses these methods everywhere.
 
         /// <summary>
-        /// Apply MaxHealth modifier to character health.
-        /// Prime modifiers ADD to the vanilla value.
+        /// Apply MaxHealth modifier to Character.GetMaxHealth().
+        /// Works for both players and creatures.
         /// </summary>
         [HarmonyPatch(typeof(Character), nameof(Character.GetMaxHealth))]
         [HarmonyPostfix]
@@ -29,83 +31,15 @@ namespace Prime.Patches
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
 
-            // Get any flat bonuses from Prime modifiers
-            float flatBonus = 0f;
-            float percentBonus = 1f;
-
-            var modifiers = container.GetModifiers("MaxHealth");
-            foreach (var mod in modifiers)
+            float bonus = CalculateBonus(container, "MaxHealth", __result);
+            if (bonus != __result)
             {
-                if (mod.Type == Modifiers.ModifierType.Flat)
-                    flatBonus += mod.Value;
-                else if (mod.Type == Modifiers.ModifierType.Percent)
-                    percentBonus += mod.Value / 100f;
-                else if (mod.Type == Modifiers.ModifierType.Multiply)
-                    percentBonus *= mod.Value;
-            }
-
-            // Track the bonus for SetHealth patch
-            if (__instance is Player)
-            {
-                _lastPrimeHealthBonus = flatBonus + (__result * (percentBonus - 1f));
-            }
-
-            // Apply bonuses on top of vanilla result
-            __result = (__result + flatBonus) * percentBonus;
-        }
-
-        /// <summary>
-        /// Prevent vanilla from resetting health below what Prime allows.
-        /// Vanilla food system can try to clamp health to its calculated max,
-        /// but we want to allow health up to our Prime-modified max.
-        /// </summary>
-        [HarmonyPatch(typeof(Character), nameof(Character.SetHealth))]
-        [HarmonyPrefix]
-        public static void Character_SetHealth_Prefix(Character __instance, ref float health)
-        {
-            if (__instance == null) return;
-
-            // Get current and max health
-            float currentHealth = __instance.GetHealth();
-            float maxHealth = __instance.GetMaxHealth(); // This includes our Prime bonuses
-
-            // If vanilla is trying to SET health lower than current, but we have Prime bonuses,
-            // don't let it reduce below current health (unless taking damage)
-            // This prevents the food system from resetting health to vanilla max
-            var container = EntityManager.Instance.Get(__instance);
-            if (container != null)
-            {
-                var modifiers = container.GetModifiers("MaxHealth");
-                bool hasPrimeBonus = false;
-                foreach (var mod in modifiers)
-                {
-                    if (mod.Value != 0)
-                    {
-                        hasPrimeBonus = true;
-                        break;
-                    }
-                }
-
-                if (hasPrimeBonus)
-                {
-                    // If trying to set health lower than current, keep current
-                    // (damage is handled separately via Damage() method)
-                    if (health < currentHealth && health > 0)
-                    {
-                        health = currentHealth;
-                    }
-
-                    // Clamp to our Prime max, not vanilla max
-                    if (health > maxHealth)
-                    {
-                        health = maxHealth;
-                    }
-                }
+                __result = bonus;
             }
         }
 
         /// <summary>
-        /// Apply MaxStamina modifier to player stamina.
+        /// Apply MaxStamina modifier to Player.GetMaxStamina().
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.GetMaxStamina))]
         [HarmonyPostfix]
@@ -114,25 +48,15 @@ namespace Prime.Patches
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
 
-            float flatBonus = 0f;
-            float percentBonus = 1f;
-
-            var modifiers = container.GetModifiers("MaxStamina");
-            foreach (var mod in modifiers)
+            float bonus = CalculateBonus(container, "MaxStamina", __result);
+            if (bonus != __result)
             {
-                if (mod.Type == Modifiers.ModifierType.Flat)
-                    flatBonus += mod.Value;
-                else if (mod.Type == Modifiers.ModifierType.Percent)
-                    percentBonus += mod.Value / 100f;
-                else if (mod.Type == Modifiers.ModifierType.Multiply)
-                    percentBonus *= mod.Value;
+                __result = bonus;
             }
-
-            __result = (__result + flatBonus) * percentBonus;
         }
 
         /// <summary>
-        /// Apply MaxEitr modifier to player eitr.
+        /// Apply MaxEitr modifier to Player.GetMaxEitr().
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.GetMaxEitr))]
         [HarmonyPostfix]
@@ -141,22 +65,284 @@ namespace Prime.Patches
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
 
+            float bonus = CalculateBonus(container, "MaxEitr", __result);
+            if (bonus != __result)
+            {
+                __result = bonus;
+            }
+        }
+
+        /// <summary>
+        /// Calculate final value with Prime modifiers applied.
+        /// Formula: (baseValue + flat) * (1 + percent/100) * multiply
+        /// </summary>
+        private static float CalculateBonus(Stats.StatContainer container, string statId, float baseValue)
+        {
+            var modifiers = container.GetModifiers(statId);
+            if (modifiers == null || modifiers.Count == 0) return baseValue;
+
             float flatBonus = 0f;
             float percentBonus = 1f;
+            float multiplyBonus = 1f;
 
-            var modifiers = container.GetModifiers("MaxEitr");
             foreach (var mod in modifiers)
             {
-                if (mod.Type == Modifiers.ModifierType.Flat)
-                    flatBonus += mod.Value;
-                else if (mod.Type == Modifiers.ModifierType.Percent)
-                    percentBonus += mod.Value / 100f;
-                else if (mod.Type == Modifiers.ModifierType.Multiply)
-                    percentBonus *= mod.Value;
+                switch (mod.Type)
+                {
+                    case ModifierType.Flat:
+                        flatBonus += mod.Value;
+                        break;
+                    case ModifierType.Percent:
+                        percentBonus += mod.Value / 100f;
+                        break;
+                    case ModifierType.Multiply:
+                        multiplyBonus *= mod.Value;
+                        break;
+                }
             }
 
-            __result = (__result + flatBonus) * percentBonus;
+            return (baseValue + flatBonus) * percentBonus * multiplyBonus;
         }
+
+        // === CLAMPING PREVENTION ===
+        // Vanilla may pass pre-clamped values to SetHealth. We need to allow
+        // health to reach Prime's max, not vanilla's max.
+
+        /// <summary>
+        /// Ensure SetHealth respects Prime's max, not vanilla's internal max.
+        /// Also prevents vanilla food system from clamping down when at full health.
+        /// </summary>
+        [HarmonyPatch(typeof(Character), nameof(Character.SetHealth))]
+        [HarmonyPrefix]
+        public static void Character_SetHealth_Prefix(Character __instance, ref float health)
+        {
+            if (__instance == null) return;
+            if (__instance is not Player player) return;
+
+            var container = EntityManager.Instance.Get(__instance);
+            if (container == null) return;
+
+            // Check if we have any MaxHealth modifiers
+            var modifiers = container.GetModifiers("MaxHealth");
+            if (modifiers == null || modifiers.Count == 0) return;
+
+            bool hasBonus = false;
+            foreach (var mod in modifiers)
+            {
+                if (mod.Value != 0)
+                {
+                    hasBonus = true;
+                    break;
+                }
+            }
+            if (!hasBonus) return;
+
+            // Get Prime's max (includes our bonuses via the patched GetMaxHealth)
+            float primeMax = __instance.GetMaxHealth();
+            float currentHealth = __instance.GetHealth();
+
+            // Calculate vanilla's max by reversing our bonus calculation
+            float vanillaMax = GetVanillaMax(container, "MaxHealth", primeMax);
+
+            // Detect food clamping: vanilla is trying to set health to its max
+            // while we're above vanilla's max. This happens when food tries to
+            // "update" health to match what it thinks is max.
+            bool isFoodClamping = Mathf.Abs(health - vanillaMax) < 1f && currentHealth > vanillaMax;
+
+            if (isFoodClamping)
+            {
+                // Don't let food system drag us down - keep current health
+                health = currentHealth;
+            }
+
+            // Always enforce Prime's max as the ceiling
+            health = Mathf.Min(health, primeMax);
+        }
+
+        /// <summary>
+        /// Calculate what vanilla's max would be without Prime bonuses.
+        /// Used to detect when vanilla is trying to clamp to its internal max.
+        /// </summary>
+        private static float GetVanillaMax(Stats.StatContainer container, string statId, float primeMax)
+        {
+            var modifiers = container.GetModifiers(statId);
+            if (modifiers == null || modifiers.Count == 0) return primeMax;
+
+            float flatBonus = 0f;
+            float percentBonus = 1f;
+            float multiplyBonus = 1f;
+
+            foreach (var mod in modifiers)
+            {
+                switch (mod.Type)
+                {
+                    case ModifierType.Flat:
+                        flatBonus += mod.Value;
+                        break;
+                    case ModifierType.Percent:
+                        percentBonus += mod.Value / 100f;
+                        break;
+                    case ModifierType.Multiply:
+                        multiplyBonus *= mod.Value;
+                        break;
+                }
+            }
+
+            // Reverse: primeMax = (vanillaMax + flat) * percent * multiply
+            // vanillaMax = (primeMax / multiply / percent) - flat
+            if (multiplyBonus == 0 || percentBonus == 0) return primeMax;
+            return (primeMax / multiplyBonus / percentBonus) - flatBonus;
+        }
+
+        // === STAMINA CLAMPING FIX ===
+        // Vanilla clamps stamina internally. We need to ensure the clamp
+        // uses Prime's max, not vanilla's internal m_maxStamina field.
+
+        /// <summary>
+        /// After UpdateStats runs, ensure stamina respects Prime's max.
+        /// Vanilla clamps m_stamina to m_maxStamina internally.
+        /// </summary>
+        [HarmonyPatch(typeof(Player), nameof(Player.UpdateStats), new[] { typeof(float) })]
+        [HarmonyPostfix]
+        public static void Player_UpdateStats_Postfix(Player __instance)
+        {
+            var container = EntityManager.Instance.Get(__instance);
+            if (container == null) return;
+
+            // Fix stamina clamping - vanilla uses m_maxStamina field for clamping
+            // but GetMaxStamina() returns our enhanced value
+            float primeMaxStamina = __instance.GetMaxStamina();
+            float currentStamina = __instance.GetStamina();
+
+            // If stamina was clamped down by vanilla, restore it
+            // (only if we have stamina bonuses)
+            var staminaMods = container.GetModifiers("MaxStamina");
+            if (staminaMods != null && staminaMods.Count > 0)
+            {
+                float vanillaMaxStamina = GetVanillaMax(container, "MaxStamina", primeMaxStamina);
+
+                // If current equals vanilla max but should be higher, player was at full
+                if (Mathf.Abs(currentStamina - vanillaMaxStamina) < 1f && primeMaxStamina > vanillaMaxStamina)
+                {
+                    // Player was at "full" vanilla stamina - set to Prime full
+                    __instance.m_stamina = primeMaxStamina;
+                }
+            }
+
+            // Same for eitr
+            float primeMaxEitr = __instance.GetMaxEitr();
+            if (primeMaxEitr > 0)
+            {
+                var eitrMods = container.GetModifiers("MaxEitr");
+                if (eitrMods != null && eitrMods.Count > 0)
+                {
+                    float currentEitr = __instance.GetEitr();
+                    float vanillaMaxEitr = GetVanillaMax(container, "MaxEitr", primeMaxEitr);
+
+                    if (Mathf.Abs(currentEitr - vanillaMaxEitr) < 1f && primeMaxEitr > vanillaMaxEitr)
+                    {
+                        __instance.m_eitr = primeMaxEitr;
+                    }
+                }
+            }
+        }
+
+        // === REGEN MULTIPLIER PATCHES ===
+        // These multiply vanilla's regen rates by Prime's regen stats.
+
+        // Cached vanilla regen values (set once per player)
+        private static readonly Dictionary<long, float> _baseStaminaRegen = new();
+        private static readonly Dictionary<long, float> _baseEitrRegen = new();
+
+        /// <summary>
+        /// Store base regen values when player awakens.
+        /// </summary>
+        [HarmonyPatch(typeof(Player), nameof(Player.Awake))]
+        [HarmonyPostfix]
+        public static void Player_Awake_Postfix(Player __instance)
+        {
+            long playerId = __instance.GetPlayerID();
+            _baseStaminaRegen[playerId] = __instance.m_staminaRegen;
+            _baseEitrRegen[playerId] = __instance.m_eiterRegen;
+        }
+
+        /// <summary>
+        /// Apply HealthRegen multiplier to healing.
+        /// </summary>
+        [HarmonyPatch(typeof(Character), nameof(Character.Heal))]
+        [HarmonyPrefix]
+        public static void Character_Heal_Prefix(Character __instance, ref float hp, bool showText)
+        {
+            if (__instance is not Player) return;
+
+            var container = EntityManager.Instance.Get(__instance);
+            if (container == null) return;
+
+            float regenMult = GetRegenMultiplier(container, "HealthRegen");
+            if (regenMult != 1f)
+            {
+                hp *= regenMult;
+            }
+        }
+
+        /// <summary>
+        /// Apply StaminaRegen and EitrRegen multipliers.
+        /// </summary>
+        [HarmonyPatch(typeof(Player), nameof(Player.UpdateStats), new[] { typeof(float) })]
+        [HarmonyPrefix]
+        public static void Player_UpdateStats_Prefix(Player __instance)
+        {
+            var container = EntityManager.Instance.Get(__instance);
+            if (container == null) return;
+
+            long playerId = __instance.GetPlayerID();
+
+            // Apply StaminaRegen multiplier
+            if (_baseStaminaRegen.TryGetValue(playerId, out float baseStamRegen))
+            {
+                float staminaRegenMult = GetRegenMultiplier(container, "StaminaRegen");
+                __instance.m_staminaRegen = baseStamRegen * staminaRegenMult;
+            }
+
+            // Apply EitrRegen multiplier
+            if (_baseEitrRegen.TryGetValue(playerId, out float baseEitrRegen))
+            {
+                float eitrRegenMult = GetRegenMultiplier(container, "EitrRegen");
+                __instance.m_eiterRegen = baseEitrRegen * eitrRegenMult;
+            }
+        }
+
+        /// <summary>
+        /// Get regen multiplier from Prime stat.
+        /// Base is 1.0. Flat adds, Percent multiplies.
+        /// </summary>
+        private static float GetRegenMultiplier(Stats.StatContainer container, string statId)
+        {
+            var modifiers = container.GetModifiers(statId);
+            float flatBonus = 0f;
+            float percentBonus = 1f;
+            float multiplyBonus = 1f;
+
+            foreach (var mod in modifiers)
+            {
+                switch (mod.Type)
+                {
+                    case ModifierType.Flat:
+                        flatBonus += mod.Value;
+                        break;
+                    case ModifierType.Percent:
+                        percentBonus += mod.Value / 100f;
+                        break;
+                    case ModifierType.Multiply:
+                        multiplyBonus *= mod.Value;
+                        break;
+                }
+            }
+
+            return (1f + flatBonus) * percentBonus * multiplyBonus;
+        }
+
+        // === ARMOR MODIFIER ===
 
         /// <summary>
         /// Apply armor modifier.
@@ -168,158 +354,36 @@ namespace Prime.Patches
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
 
-            float flatBonus = 0f;
-            float percentBonus = 1f;
-
-            var modifiers = container.GetModifiers("Armor");
-            foreach (var mod in modifiers)
-            {
-                if (mod.Type == Modifiers.ModifierType.Flat)
-                    flatBonus += mod.Value;
-                else if (mod.Type == Modifiers.ModifierType.Percent)
-                    percentBonus += mod.Value / 100f;
-                else if (mod.Type == Modifiers.ModifierType.Multiply)
-                    percentBonus *= mod.Value;
-            }
-
-            __result = (__result + flatBonus) * percentBonus;
+            __result = CalculateBonus(container, "Armor", __result);
         }
 
-        /// <summary>
-        /// Ensure health can reach our modified max by directly manipulating the field.
-        /// This runs after Player.UpdateStats to undo vanilla's clamping.
-        /// </summary>
-        [HarmonyPatch(typeof(Player), nameof(Player.UpdateStats), new[] { typeof(float) })]
-        [HarmonyPostfix]
-        public static void Player_UpdateStats_Postfix(Player __instance)
-        {
-            var container = EntityManager.Instance.Get(__instance);
-            if (container == null) return;
-
-            // Cache reflection fields on first use
-            if (_healthField == null)
-            {
-                _healthField = typeof(Character).GetField("m_health", BindingFlags.NonPublic | BindingFlags.Instance);
-            }
-            if (_staminaField == null)
-            {
-                _staminaField = typeof(Player).GetField("m_stamina", BindingFlags.NonPublic | BindingFlags.Instance);
-            }
-
-            // Get our modified max health
-            float primeMaxHealth = __instance.GetMaxHealth();
-            float currentHealth = __instance.GetHealth();
-
-            // Check if we have any health modifiers
-            var healthMods = container.GetModifiers("MaxHealth");
-            float totalHealthBonus = 0f;
-            foreach (var mod in healthMods)
-            {
-                if (mod.Value != 0)
-                {
-                    totalHealthBonus += mod.Value;
-                }
-            }
-
-            // If we have Prime health bonuses and vanilla just clamped our health
-            if (totalHealthBonus > 0 && _healthField != null)
-            {
-                // Calculate vanilla's base max (what it would be without Prime)
-                // This is approximate - base health is 25 without food
-                float vanillaBaseHealth = 25f;
-                float foodBonus = primeMaxHealth - totalHealthBonus - vanillaBaseHealth;
-                if (foodBonus < 0) foodBonus = 0;
-                float vanillaMax = vanillaBaseHealth + foodBonus;
-
-                // If vanilla clamped us to its max (or close to it),
-                // we need to scale up proportionally
-                if (currentHealth <= vanillaMax + 1f && currentHealth < primeMaxHealth)
-                {
-                    // Calculate what health SHOULD be based on vanilla's percentage
-                    // If vanilla thinks we're at 100% (25/25), we should be at 100% (178/178)
-                    float healthPercent = vanillaMax > 0 ? currentHealth / vanillaMax : 1f;
-                    float targetHealth = primeMaxHealth * healthPercent;
-
-                    // Only adjust upward (don't reduce health)
-                    if (targetHealth > currentHealth)
-                    {
-                        _healthField.SetValue(__instance, targetHealth);
-                    }
-                }
-            }
-
-            // Same for stamina
-            float primeMaxStamina = __instance.GetMaxStamina();
-            float currentStamina = __instance.GetStamina();
-
-            var staminaMods = container.GetModifiers("MaxStamina");
-            float totalStaminaBonus = 0f;
-            foreach (var mod in staminaMods)
-            {
-                if (mod.Value != 0)
-                {
-                    totalStaminaBonus += mod.Value;
-                }
-            }
-
-            if (totalStaminaBonus > 0 && _staminaField != null)
-            {
-                float vanillaBaseStamina = 75f; // Base stamina without food
-                float staminaFoodBonus = primeMaxStamina - totalStaminaBonus - vanillaBaseStamina;
-                if (staminaFoodBonus < 0) staminaFoodBonus = 0;
-                float vanillaMaxStamina = vanillaBaseStamina + staminaFoodBonus;
-
-                if (currentStamina <= vanillaMaxStamina + 1f && currentStamina < primeMaxStamina)
-                {
-                    float staminaPercent = vanillaMaxStamina > 0 ? currentStamina / vanillaMaxStamina : 1f;
-                    float targetStamina = primeMaxStamina * staminaPercent;
-
-                    if (targetStamina > currentStamina)
-                    {
-                        _staminaField.SetValue(__instance, targetStamina);
-                    }
-                }
-            }
-        }
+        // === SPAWN HANDLING ===
 
         /// <summary>
-        /// When player spawns, set health to our modified max after a short delay.
+        /// When player spawns, ensure they start at Prime's max health.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
         [HarmonyPostfix]
         public static void Player_OnSpawned_Postfix(Player __instance)
         {
-            // Use coroutine-style delayed action
-            if (__instance != null)
-            {
-                // Set health immediately to max
-                SetPlayerToMax(__instance);
-            }
-        }
+            if (__instance == null) return;
 
-        /// <summary>
-        /// Sets player health and stamina to their Prime-modified max.
-        /// </summary>
-        private static void SetPlayerToMax(Player player)
-        {
-            if (player == null) return;
+            // Set to Prime's max
+            float maxHealth = __instance.GetMaxHealth();
+            float currentHealth = __instance.GetHealth();
 
-            float maxHealth = player.GetMaxHealth();
-            float currentHealth = player.GetHealth();
-
-            // Set health to max
             if (currentHealth < maxHealth)
             {
-                player.SetHealth(maxHealth);
-                Plugin.Log?.LogDebug($"[Prime] Set player health to max: {maxHealth}");
+                __instance.SetHealth(maxHealth);
+                Plugin.Log?.LogDebug($"[Prime] Set player health to Prime max: {maxHealth}");
             }
 
-            float maxStamina = player.GetMaxStamina();
-            float currentStamina = player.GetStamina();
+            float maxStamina = __instance.GetMaxStamina();
+            float currentStamina = __instance.GetStamina();
 
             if (currentStamina < maxStamina)
             {
-                player.AddStamina(maxStamina - currentStamina);
+                __instance.m_stamina = maxStamina;
             }
         }
     }
