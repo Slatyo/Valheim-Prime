@@ -65,6 +65,18 @@ namespace Prime.Abilities
         public object UserData { get; set; }
 
         /// <summary>
+        /// Damage multiplier for this instance (default 1.0).
+        /// Used by proc system to scale damage.
+        /// </summary>
+        public float DamageMultiplier { get; set; } = 1.0f;
+
+        /// <summary>
+        /// If true, skip resource cost when executing.
+        /// Used by proc system for free ability procs.
+        /// </summary>
+        public bool SkipResourceCost { get; set; }
+
+        /// <summary>
         /// Creates a new ability instance.
         /// </summary>
         /// <param name="definition">The ability definition</param>
@@ -89,8 +101,8 @@ namespace Prime.Abilities
             if (Definition.UseCondition != null && !Definition.UseCondition(Caster))
                 return false;
 
-            // Check and consume resources
-            if (!TryConsumeResources())
+            // Check and consume resources (unless skipped)
+            if (!SkipResourceCost && !TryConsumeResources())
                 return false;
 
             // Calculate effective cooldown with CDR
@@ -110,6 +122,20 @@ namespace Prime.Abilities
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Force execute the ability immediately, bypassing all checks.
+        /// Used by proc system for item-triggered abilities.
+        /// </summary>
+        public void ForceExecute()
+        {
+            // Calculate effective cooldown with CDR
+            float cdr = PrimeAPI.Get(Caster, "CooldownReduction");
+            EffectiveCooldown = Definition.BaseCooldown * (1f - cdr);
+
+            // Execute immediately, no cast time
+            Execute();
         }
 
         /// <summary>
@@ -260,6 +286,12 @@ namespace Prime.Abilities
                 }
             }
 
+            // Play cast VFX via Spark (if available)
+            if (!string.IsNullOrEmpty(Definition.CastVFX))
+            {
+                Core.VFXHelper.PlayOnCharacter(Definition.CastVFX, Caster);
+            }
+
             // Apply self effects
             foreach (var effect in Definition.SelfEffects)
             {
@@ -286,6 +318,12 @@ namespace Prime.Abilities
 
                 // Deal damage through combat system
                 Combat.CombatManager.DealAbilityDamage(Caster, Target, Definition, damage, isCrit);
+
+                // Play hit VFX on target via Spark (if available)
+                if (!string.IsNullOrEmpty(Definition.HitVFX))
+                {
+                    Core.VFXHelper.PlayOnCharacter(Definition.HitVFX, Target);
+                }
 
                 // Apply target effects
                 foreach (var effect in Definition.TargetEffects)
@@ -330,6 +368,9 @@ namespace Prime.Abilities
                 float damageBonus = PrimeAPI.Get(Caster, damageTypeStat);
                 damage *= (1f + damageBonus);
             }
+
+            // Apply instance damage multiplier (from proc system)
+            damage *= DamageMultiplier;
 
             return damage;
         }

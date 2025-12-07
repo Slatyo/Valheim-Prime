@@ -8,6 +8,7 @@ using Prime.Core;
 using Prime.Config;
 using Prime.Abilities;
 using Prime.Commands;
+using Prime.Procs;
 
 namespace Prime
 {
@@ -18,6 +19,7 @@ namespace Prime
     [BepInPlugin(PluginGUID, PluginName, PluginVersion)]
     [BepInDependency(Jotunn.Main.ModGuid)]
     [BepInDependency("com.slatyo.munin", BepInDependency.DependencyFlags.SoftDependency)]
+    [BepInDependency("com.slatyo.spark", BepInDependency.DependencyFlags.SoftDependency)]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.Minor)]
     public class Plugin : BaseUnityPlugin
     {
@@ -67,6 +69,9 @@ namespace Prime
             // Register Munin commands (if Munin is available)
             MuninCommands.Register();
 
+            // Initialize item proc system
+            ItemProcSystem.Instance.Initialize();
+
             // Initialize Harmony patches
             _harmony = new Harmony(PluginGUID);
             _harmony.PatchAll();
@@ -87,6 +92,7 @@ namespace Prime
         private void OnDestroy()
         {
             // Cleanup
+            ItemProcSystem.Instance.Shutdown();
             EntityManager.Instance.Clear();
             Effects.EffectManager.Clear();
             _harmony?.UnpatchSelf();

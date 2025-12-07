@@ -191,13 +191,10 @@ namespace Prime.Patches
             // Initialize stats container for player
             var container = PrimeAPI.InitializeEntity(__instance);
 
-            // Sync some base values from Valheim
-            // Note: These could be overwritten by mods that want different base values
-            if (container != null)
-            {
-                container.SetBase("MaxHealth", __instance.GetMaxHealth());
-                container.SetBase("MaxStamina", __instance.GetMaxStamina());
-            }
+            // NOTE: We do NOT set base values for MaxHealth/MaxStamina/MaxEitr here.
+            // These are handled by postfix patches on GetMaxHealth/GetMaxStamina/GetMaxEitr
+            // which add Prime modifiers to vanilla's food-based values.
+            // Setting base here would cause double-counting since the getters are patched.
 
             Plugin.Log?.LogDebug($"[Prime] Initialized stats for player: {__instance.GetPlayerName()}");
         }
