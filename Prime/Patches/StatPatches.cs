@@ -23,6 +23,7 @@ namespace Prime.Patches
         /// <summary>
         /// Apply MaxHealth modifier to Character.GetMaxHealth().
         /// Works for both players and creatures.
+        /// Also syncs vanilla's calculated value as Prime's base for consistent PrimeAPI.Get() results.
         /// </summary>
         [HarmonyPatch(typeof(Character), nameof(Character.GetMaxHealth))]
         [HarmonyPostfix]
@@ -30,6 +31,10 @@ namespace Prime.Patches
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
+
+            // Sync vanilla's calculated value as Prime's base
+            // This ensures PrimeAPI.Get("MaxHealth") returns vanilla + modifiers (not arbitrary 100 + modifiers)
+            container.SyncVanillaBase("MaxHealth", __result);
 
             float bonus = CalculateBonus(container, "MaxHealth", __result);
             if (bonus != __result)
@@ -40,6 +45,7 @@ namespace Prime.Patches
 
         /// <summary>
         /// Apply MaxStamina modifier to Player.GetMaxStamina().
+        /// Also syncs vanilla's calculated value as Prime's base.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.GetMaxStamina))]
         [HarmonyPostfix]
@@ -47,6 +53,9 @@ namespace Prime.Patches
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
+
+            // Sync vanilla's calculated value as Prime's base
+            container.SyncVanillaBase("MaxStamina", __result);
 
             float bonus = CalculateBonus(container, "MaxStamina", __result);
             if (bonus != __result)
@@ -57,6 +66,7 @@ namespace Prime.Patches
 
         /// <summary>
         /// Apply MaxEitr modifier to Player.GetMaxEitr().
+        /// Also syncs vanilla's calculated value as Prime's base.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.GetMaxEitr))]
         [HarmonyPostfix]
@@ -64,6 +74,9 @@ namespace Prime.Patches
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
+
+            // Sync vanilla's calculated value as Prime's base
+            container.SyncVanillaBase("MaxEitr", __result);
 
             float bonus = CalculateBonus(container, "MaxEitr", __result);
             if (bonus != __result)
@@ -201,10 +214,11 @@ namespace Prime.Patches
         /// <summary>
         /// After UpdateStats runs, ensure stamina respects Prime's max.
         /// Vanilla clamps m_stamina to m_maxStamina internally.
+        /// Also applies passive health per second regeneration.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.UpdateStats), new[] { typeof(float) })]
         [HarmonyPostfix]
-        public static void Player_UpdateStats_Postfix(Player __instance)
+        public static void Player_UpdateStats_Postfix(Player __instance, float dt)
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
@@ -244,6 +258,35 @@ namespace Prime.Patches
                         __instance.m_eitr = primeMaxEitr;
                     }
                 }
+            }
+
+            // Apply passive Health Per Second regeneration
+            ApplyHealthPerSecond(__instance, container, dt);
+        }
+
+        /// <summary>
+        /// Applies passive health regeneration based on HealthPerSecond stat.
+        /// </summary>
+        private static void ApplyHealthPerSecond(Player player, Stats.StatContainer container, float dt)
+        {
+            // Get base HPS value
+            float hps = container.Get("HealthPerSecond");
+            if (hps <= 0) return;
+
+            // Only regen if alive and not at full health
+            if (player.GetHealth() <= 0) return;
+            if (player.GetHealth() >= player.GetMaxHealth()) return;
+
+            // Apply HealthRegen multiplier to HPS
+            float regenMult = GetRegenMultiplier(container, "HealthRegen");
+            hps *= regenMult;
+
+            // Calculate heal amount for this frame
+            float healAmount = hps * dt;
+            if (healAmount > 0)
+            {
+                // Use Heal() without showing text to avoid spam
+                player.Heal(healAmount, showText: false);
             }
         }
 

@@ -297,9 +297,9 @@ namespace Prime.Combat
 
             // Apply armor to physical damage
             float armor = PrimeAPI.Get(damageInfo.Target, "Armor");
+            var physicalTypes = new[] { DamageType.Physical, DamageType.Blunt, DamageType.Slash, DamageType.Pierce };
             if (armor > 0)
             {
-                var physicalTypes = new[] { DamageType.Physical, DamageType.Blunt, DamageType.Slash, DamageType.Pierce };
                 foreach (var type in physicalTypes)
                 {
                     if (damageInfo.Damages.TryGetValue(type, out float value))
@@ -308,6 +308,21 @@ namespace Prime.Combat
                         // This gives diminishing returns: 100 armor = 50% reduction, 300 armor = 75%
                         float reduction = armor / (armor + 100f);
                         damageInfo.Damages[type] = value * (1f - reduction);
+                    }
+                }
+            }
+
+            // Apply PhysicalResist as additional % reduction (stacks with armor)
+            float physResist = PrimeAPI.Get(damageInfo.Target, "PhysicalResist");
+            if (physResist != 0f)
+            {
+                // Clamp to prevent immunity or more than 2x damage
+                physResist = Mathf.Clamp(physResist, -1f, 0.9f);
+                foreach (var type in physicalTypes)
+                {
+                    if (damageInfo.Damages.TryGetValue(type, out float value))
+                    {
+                        damageInfo.Damages[type] = value * (1f - physResist);
                     }
                 }
             }

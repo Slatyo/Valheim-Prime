@@ -398,6 +398,18 @@ namespace Prime
                 Tags = new[] { "resource", "regen", "magic" }
             });
 
+            // Passive health per second regeneration
+            registry.Register(new StatDefinition("HealthPerSecond", 0f)
+            {
+                DisplayName = "$stat_healthpersecond",
+                Description = "$stat_healthpersecond_desc",
+                MinValue = 0f,
+                Category = StatCategory.Resource,
+                DisplayType = StatDisplayType.Number,
+                DecimalPlaces = 1,
+                Tags = new[] { "resource", "health", "regen" }
+            });
+
             // === STAGGER/COMBAT MECHANICS ===
             registry.Register(new StatDefinition("StaggerDamage", 0f)
             {
@@ -712,6 +724,16 @@ namespace Prime
                 { "stat_cooldownreduction", "Cooldown Reduction" },
                 { "stat_cooldownreduction_desc", "Reduces ability cooldowns" },
 
+                // Regeneration
+                { "stat_healthregen", "Health Regeneration" },
+                { "stat_healthregen_desc", "Multiplier for health regeneration from food" },
+                { "stat_staminaregen", "Stamina Regeneration" },
+                { "stat_staminaregen_desc", "Multiplier for stamina regeneration" },
+                { "stat_eitrregen", "Eitr Regeneration" },
+                { "stat_eitrregen_desc", "Multiplier for eitr regeneration" },
+                { "stat_healthpersecond", "Health Per Second" },
+                { "stat_healthpersecond_desc", "Passive health regeneration per second" },
+
                 // === WARRIOR ABILITIES ===
                 { "ability_warcry", "War Cry" },
                 { "ability_warcry_desc", "Let out a fearsome war cry, boosting your strength and speed." },
@@ -893,6 +915,16 @@ namespace Prime
                 { "stat_carryweight_desc", "Maximales Gewicht das du tragen kannst" },
                 { "stat_cooldownreduction", "Abklingzeitverkürzung" },
                 { "stat_cooldownreduction_desc", "Reduziert Fähigkeiten-Abklingzeiten" },
+
+                // Regeneration
+                { "stat_healthregen", "Gesundheitsregeneration" },
+                { "stat_healthregen_desc", "Multiplikator für Gesundheitsregeneration durch Essen" },
+                { "stat_staminaregen", "Ausdauerregeneration" },
+                { "stat_staminaregen_desc", "Multiplikator für Ausdauerregeneration" },
+                { "stat_eitrregen", "Eitr-Regeneration" },
+                { "stat_eitrregen_desc", "Multiplikator für Eitr-Regeneration" },
+                { "stat_healthpersecond", "Gesundheit pro Sekunde" },
+                { "stat_healthpersecond_desc", "Passive Gesundheitsregeneration pro Sekunde" },
             });
         }
 

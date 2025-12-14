@@ -26,6 +26,12 @@ namespace Prime.Stats
         private readonly Dictionary<string, float> _cachedValues = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _dirtyStats = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// Vanilla-synced base values for stats that come from the game's calculation (e.g., food-based health).
+        /// These take precedence over hardcoded base values when calculating final stat values.
+        /// </summary>
+        private readonly Dictionary<string, float> _vanillaSyncedBases = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
         private float _lastUpdateTime;
         private bool _initialized;
 
@@ -87,19 +93,59 @@ namespace Prime.Stats
 
         /// <summary>
         /// Gets the base value of a stat (without modifiers).
+        /// Priority: Vanilla-synced value > Explicitly set base > Definition default
         /// </summary>
         /// <param name="statId">The stat ID</param>
-        /// <returns>The base value, or the definition's default if not set</returns>
+        /// <returns>The base value</returns>
         public float GetBase(string statId)
         {
             if (string.IsNullOrEmpty(statId))
                 return 0f;
 
+            // Priority 1: Vanilla-synced base (from game's actual calculations like food)
+            if (_vanillaSyncedBases.TryGetValue(statId, out float vanillaValue))
+                return vanillaValue;
+
+            // Priority 2: Explicitly set base value
             if (_baseValues.TryGetValue(statId, out float value))
                 return value;
 
+            // Priority 3: Definition default
             var definition = StatRegistry.Instance.Get(statId);
             return definition?.BaseValue ?? 0f;
+        }
+
+        /// <summary>
+        /// Syncs a base value from vanilla's game calculation.
+        /// This is used for stats like MaxHealth where vanilla calculates the base from food/equipment.
+        /// Does NOT trigger events or recalculation to avoid circular loops.
+        /// </summary>
+        /// <param name="statId">The stat ID</param>
+        /// <param name="vanillaValue">The value vanilla calculated (before Prime modifiers)</param>
+        public void SyncVanillaBase(string statId, float vanillaValue)
+        {
+            if (string.IsNullOrEmpty(statId))
+                return;
+
+            // Only update if value actually changed (avoid unnecessary cache invalidation)
+            if (_vanillaSyncedBases.TryGetValue(statId, out float existing) &&
+                Math.Abs(existing - vanillaValue) < 0.001f)
+                return;
+
+            _vanillaSyncedBases[statId] = vanillaValue;
+            // Mark dirty so next Get() recalculates with new base
+            _dirtyStats.Add(statId);
+        }
+
+        /// <summary>
+        /// Gets the vanilla-synced base value if one exists.
+        /// </summary>
+        /// <param name="statId">The stat ID</param>
+        /// <param name="value">The vanilla base value</param>
+        /// <returns>True if a vanilla-synced value exists</returns>
+        public bool TryGetVanillaBase(string statId, out float value)
+        {
+            return _vanillaSyncedBases.TryGetValue(statId, out value);
         }
 
         /// <summary>
