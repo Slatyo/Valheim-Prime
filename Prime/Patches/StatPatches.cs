@@ -23,7 +23,6 @@ namespace Prime.Patches
         /// <summary>
         /// Apply MaxHealth modifier to Character.GetMaxHealth().
         /// Works for both players and creatures.
-        /// Also syncs vanilla's calculated value as Prime's base for consistent PrimeAPI.Get() results.
         /// </summary>
         [HarmonyPatch(typeof(Character), nameof(Character.GetMaxHealth))]
         [HarmonyPostfix]
@@ -31,10 +30,6 @@ namespace Prime.Patches
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
-
-            // Sync vanilla's calculated value as Prime's base
-            // This ensures PrimeAPI.Get("MaxHealth") returns vanilla + modifiers (not arbitrary 100 + modifiers)
-            container.SyncVanillaBase("MaxHealth", __result);
 
             float bonus = CalculateBonus(container, "MaxHealth", __result);
             if (bonus != __result)
@@ -45,7 +40,6 @@ namespace Prime.Patches
 
         /// <summary>
         /// Apply MaxStamina modifier to Player.GetMaxStamina().
-        /// Also syncs vanilla's calculated value as Prime's base.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.GetMaxStamina))]
         [HarmonyPostfix]
@@ -53,9 +47,6 @@ namespace Prime.Patches
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
-
-            // Sync vanilla's calculated value as Prime's base
-            container.SyncVanillaBase("MaxStamina", __result);
 
             float bonus = CalculateBonus(container, "MaxStamina", __result);
             if (bonus != __result)
@@ -66,7 +57,6 @@ namespace Prime.Patches
 
         /// <summary>
         /// Apply MaxEitr modifier to Player.GetMaxEitr().
-        /// Also syncs vanilla's calculated value as Prime's base.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.GetMaxEitr))]
         [HarmonyPostfix]
@@ -74,9 +64,6 @@ namespace Prime.Patches
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
-
-            // Sync vanilla's calculated value as Prime's base
-            container.SyncVanillaBase("MaxEitr", __result);
 
             float bonus = CalculateBonus(container, "MaxEitr", __result);
             if (bonus != __result)
@@ -207,86 +194,59 @@ namespace Prime.Patches
             return (primeMax / multiplyBonus / percentBonus) - flatBonus;
         }
 
-        // === STAMINA CLAMPING FIX ===
-        // Vanilla clamps stamina internally. We need to ensure the clamp
-        // uses Prime's max, not vanilla's internal m_maxStamina field.
+        // === FIELD SYNCHRONIZATION ===
+        // Vanilla uses m_maxStamina and m_maxEitr FIELDS for internal clamping,
+        // but our patches are on the GETTER methods. To prevent clamping issues,
+        // we sync the fields to match our patched getter values BEFORE UpdateStats runs.
+        // This way vanilla's internal math uses Prime's enhanced values.
+
+        // Track last synced values to avoid unnecessary writes
+        private static readonly Dictionary<long, float> _lastSyncedMaxStamina = new();
+        private static readonly Dictionary<long, float> _lastSyncedMaxEitr = new();
 
         /// <summary>
-        /// After UpdateStats runs, ensure stamina respects Prime's max.
-        /// Vanilla clamps m_stamina to m_maxStamina internally.
-        /// Also applies passive health per second regeneration.
+        /// Sync m_maxStamina and m_maxEitr fields to Prime's calculated values
+        /// BEFORE vanilla's UpdateStats runs. This prevents internal clamping issues.
         /// </summary>
         [HarmonyPatch(typeof(Player), nameof(Player.UpdateStats), new[] { typeof(float) })]
-        [HarmonyPostfix]
-        public static void Player_UpdateStats_Postfix(Player __instance, float dt)
+        [HarmonyPrefix]
+        [HarmonyPriority(Priority.First)]
+        public static void Player_UpdateStats_SyncFields_Prefix(Player __instance)
         {
             var container = EntityManager.Instance.Get(__instance);
             if (container == null) return;
 
-            // Fix stamina clamping - vanilla uses m_maxStamina field for clamping
-            // but GetMaxStamina() returns our enhanced value
-            float primeMaxStamina = __instance.GetMaxStamina();
-            float currentStamina = __instance.GetStamina();
+            long playerId = __instance.GetPlayerID();
 
-            // If stamina was clamped down by vanilla, restore it
-            // (only if we have stamina bonuses)
+            // Check for MaxStamina modifiers
             var staminaMods = container.GetModifiers("MaxStamina");
             if (staminaMods != null && staminaMods.Count > 0)
             {
-                float vanillaMaxStamina = GetVanillaMax(container, "MaxStamina", primeMaxStamina);
+                // Get Prime's max (patched getter includes our bonuses)
+                float primeMax = __instance.GetMaxStamina();
 
-                // If current equals vanilla max but should be higher, player was at full
-                if (Mathf.Abs(currentStamina - vanillaMaxStamina) < 1f && primeMaxStamina > vanillaMaxStamina)
+                // Only sync if value changed to avoid unnecessary field writes
+                if (!_lastSyncedMaxStamina.TryGetValue(playerId, out float lastSync) ||
+                    Mathf.Abs(lastSync - primeMax) > 0.1f)
                 {
-                    // Player was at "full" vanilla stamina - set to Prime full
-                    __instance.m_stamina = primeMaxStamina;
+                    // Sync the field so vanilla's clamping uses our value
+                    __instance.m_maxStamina = primeMax;
+                    _lastSyncedMaxStamina[playerId] = primeMax;
                 }
             }
 
-            // Same for eitr
-            float primeMaxEitr = __instance.GetMaxEitr();
-            if (primeMaxEitr > 0)
+            // Check for MaxEitr modifiers
+            var eitrMods = container.GetModifiers("MaxEitr");
+            if (eitrMods != null && eitrMods.Count > 0)
             {
-                var eitrMods = container.GetModifiers("MaxEitr");
-                if (eitrMods != null && eitrMods.Count > 0)
+                float primeMax = __instance.GetMaxEitr();
+
+                if (!_lastSyncedMaxEitr.TryGetValue(playerId, out float lastSync) ||
+                    Mathf.Abs(lastSync - primeMax) > 0.1f)
                 {
-                    float currentEitr = __instance.GetEitr();
-                    float vanillaMaxEitr = GetVanillaMax(container, "MaxEitr", primeMaxEitr);
-
-                    if (Mathf.Abs(currentEitr - vanillaMaxEitr) < 1f && primeMaxEitr > vanillaMaxEitr)
-                    {
-                        __instance.m_eitr = primeMaxEitr;
-                    }
+                    __instance.m_maxEitr = primeMax;
+                    _lastSyncedMaxEitr[playerId] = primeMax;
                 }
-            }
-
-            // Apply passive Health Per Second regeneration
-            ApplyHealthPerSecond(__instance, container, dt);
-        }
-
-        /// <summary>
-        /// Applies passive health regeneration based on HealthPerSecond stat.
-        /// </summary>
-        private static void ApplyHealthPerSecond(Player player, Stats.StatContainer container, float dt)
-        {
-            // Get base HPS value
-            float hps = container.Get("HealthPerSecond");
-            if (hps <= 0) return;
-
-            // Only regen if alive and not at full health
-            if (player.GetHealth() <= 0) return;
-            if (player.GetHealth() >= player.GetMaxHealth()) return;
-
-            // Apply HealthRegen multiplier to HPS
-            float regenMult = GetRegenMultiplier(container, "HealthRegen");
-            hps *= regenMult;
-
-            // Calculate heal amount for this frame
-            float healAmount = hps * dt;
-            if (healAmount > 0)
-            {
-                // Use Heal() without showing text to avoid spam
-                player.Heal(healAmount, showText: false);
             }
         }
 
